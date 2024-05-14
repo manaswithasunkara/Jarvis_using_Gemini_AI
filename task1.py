@@ -1,5 +1,7 @@
+from urllib.parse import urlparse
 import requests
-from config import headers, key
+from bs4 import BeautifulSoup
+from config import key, weather, mail, news
 import socket
 
 def get_ip(host):
@@ -19,7 +21,7 @@ def temp_city(city):
 
     querystring = {"location":city,"format":"json","u":"f"}
 
-    response = requests.get(url, headers=headers, params=querystring)
+    response = requests.get(url, headers=weather, params=querystring)
 
     d1 = response.json()
     d1 = d1.get("current_observation")
@@ -42,6 +44,52 @@ def chat1(chat):
     t2 = t1.get("candidates")[0].get("content").get("parts")[0].get("text")
     print(t2)
     return t2
+
+def send_email(recipient, subject, body):
+    url = "https://mail-sender-api1.p.rapidapi.com/"
+
+    your_mail_address = "deepesh.ahuja002@gmail.com"
+    print(recipient,subject,body)
+
+    payload = {
+        "sendto": recipient,
+        "replyTo": your_mail_address,
+        "title": subject,
+        "body": body
+    }
+    
+    response = requests.post(url, json=payload, headers=mail)
+
+    print(response.json())
+    return "mail sent successfully"
+
+def scrape_p_tags(url):
+    all_text = ""
+    try:
+        response = requests.get(url)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        # Find all <p> tags and extract text
+        p_tags = soup.find_all('p')
+        for p_tag in p_tags:
+            all_text += p_tag.get_text() + "\n"
+    except Exception as e:
+        print(f"Error scraping {url}: {e}")
+    return all_text
+
+def get_news(topic):
+    url = "https://real-time-news-data.p.rapidapi.com/search"
+
+    querystring = {"query":topic}
+
+    response = requests.get(url, headers=news, params=querystring)
+    t1=response.json()
+    t2 = t1.get('data')
+    for i in range(0,2):
+        t3 = t2[i]
+        t4 = t3.get('link')
+        t5 = t3.get('title')
+        t6 = scrape_p_tags(t4)
+    return t5 + "\n" + t6
 
 definations = [
     {
@@ -99,7 +147,43 @@ definations = [
                     }
                 }
             }
+    },
+    {
+        "name":"send_email",  # name of the function to be called
+        "description": "send email using email api",
+        "parameters":
+            {
+                "type":"object",
+                "properties":{
+                    "recipient" : {                 # Argument for function temp_city
+                        "type":"string",
+                        "description":"recipient email address"
+                    },
+                    "subject" : {                 # Argument for function temp_city
+                        "type":"string",
+                        "description":"email subject"
+                    },
+                    "body" : {                 # Argument for function temp_city
+                        "type":"string",
+                        "description":"email body content"
+                    }
+            }
     }
+    },
+    {
+        "name":"get_news",  # name of the function to be called
+        "description": "get the news or update from api",
+        "parameters":
+            {
+                "type":"object",
+                "properties":{
+                    "topic" : {                 # Argument for function temp_city
+                        "type":"string",
+                        "description":"topic on what news they want"
+                    }
+                }
+            }
+    },
 ]
 
 if __name__ == "__main__":
